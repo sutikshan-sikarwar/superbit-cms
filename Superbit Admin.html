@@ -85,7 +85,7 @@
 <div id="root"></div>
 
 <script type="text/babel" data-presets="env,react">
-const { useState, useMemo, useEffect, useCallback, createContext, useContext } = React;
+const { useState, useMemo, useEffect, useCallback, useRef, createContext, useContext } = React;
 
 /* ============================================================
    ICONS
@@ -948,6 +948,19 @@ function Sidebar({ active, setActive, counts }) {
 function Topbar({ onProfile, onLogout }) {
   const { role, setRole } = useApp();
   const [open, setOpen] = useState(false);
+  const menuRef = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleOutsideClick = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, [open]);
+
   return (
     <header className="bg-sb-card border-b border-sb-border h-[68px] flex items-center px-8 gap-6 sticky top-0 z-10">
       <div className="relative flex-1 max-w-[460px]">
@@ -961,10 +974,9 @@ function Topbar({ onProfile, onLogout }) {
       </div>
       <div className="ml-auto flex items-center gap-5">
 
-        <div className="relative">
+        <div className="relative" ref={menuRef}>
           <button
             onClick={() => setOpen(o => !o)}
-            onBlur={() => setTimeout(() => setOpen(false), 140)}
             className="flex items-center gap-3 pl-5 border-l border-sb-border h-9 hover:opacity-90"
           >
             <div className="w-9 h-9 rounded-full bg-gradient-to-br from-sb-primary to-[#1F4B8F] text-white flex items-center justify-center font-mont font-semibold text-[13px]">AM</div>
