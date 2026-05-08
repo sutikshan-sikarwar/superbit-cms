@@ -1,0 +1,1684 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=1440" />
+<title>Superbit Admin Portal</title>
+<link rel="icon" type="image/svg+xml" href="superbit-logo.svg" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Hanken+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+
+<script>
+  // Try primary Tailwind CDN; if blocked in Claude preview, fall back to unpkg.
+  (function loadTailwind(){
+    var primary = document.createElement('script');
+    primary.src = 'https://cdn.tailwindcss.com';
+    primary.onload = function(){ window.__tw_apply_config && window.__tw_apply_config(); };
+    primary.onerror = function(){
+      var fb = document.createElement('script');
+      fb.src = 'https://unpkg.com/@tailwindcss/browser@4';
+      fb.onload = function(){
+        window.__tw_apply_config && window.__tw_apply_config();
+        if (window.__tw_retry_render) window.__tw_retry_render();
+      };
+      document.head.appendChild(fb);
+    };
+    document.head.appendChild(primary);
+  })();
+  window.__tw_apply_config = function(){
+    if (typeof tailwind === 'undefined') return;
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            'sb-primary':   '#0F4C94',
+            'sb-sidebar':   '#1F4B8F',
+            'sb-page':      '#F5F7FB',
+            'sb-card':      '#FFFFFF',
+            'sb-border':    '#E7E8EC',
+            'sb-divider':   '#D3D9DE',
+            'sb-text':      '#333333',
+            'sb-muted':     '#777777',
+            'sb-placeholder': '#555555',
+            'sb-error':     '#FF4D4F',
+            'sb-th':        '#F9FAFB',
+            'sb-rowhover':  '#F5F7FB',
+            'sb-search':    '#F1F3F7',
+            'sb-sidetext':  '#C7D2E5',
+            'sb-sidelabel': '#9FB3D9',
+          },
+          fontFamily: {
+            mont: ['Montserrat', 'system-ui', 'sans-serif'],
+            hanken: ['"Hanken Grotesk"', 'system-ui', 'sans-serif'],
+          },
+          boxShadow: {
+            card: '0 1px 2px rgba(16,24,40,0.04), 0 1px 3px rgba(16,24,40,0.04)',
+            modal:'0 20px 50px rgba(16,24,40,0.18), 0 4px 12px rgba(16,24,40,0.08)',
+          }
+        }
+      }
+    };
+  };
+</script>
+
+<style>
+  html, body { font-family: 'Montserrat', system-ui, sans-serif; color: #333333; background:#F5F7FB; }
+  .font-hanken { font-family: 'Hanken Grotesk', system-ui, sans-serif; }
+  ::placeholder { color:#9AA4B2; font-family:'Hanken Grotesk', system-ui, sans-serif; }
+  .scroll-thin::-webkit-scrollbar { width: 8px; height: 8px; }
+  .scroll-thin::-webkit-scrollbar-thumb { background:#D3D9DE; border-radius: 4px; }
+  @keyframes sbIn { from { opacity: 0; transform: translateY(8px) scale(.98);} to {opacity: 1; transform: none;} }
+  @keyframes sbToast { from { opacity: 0; transform: translateY(12px);} to {opacity: 1; transform: none;} }
+  .sb-modal-in { animation: sbIn .14s ease-out; }
+  .sb-toast-in { animation: sbToast .18s ease-out; }
+</style>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+
+<body class="min-h-screen">
+
+<div id="root"></div>
+
+<script type="text/babel" data-presets="env,react">
+const { useState, useMemo, useEffect, useCallback, createContext, useContext } = React;
+
+/* ============================================================
+   ICONS
+   ============================================================ */
+const Icon = ({ name, className = "w-5 h-5", stroke = "currentColor" }) => {
+  const c = { fill: "none", stroke, strokeWidth: 1.6, strokeLinecap: "round", strokeLinejoin: "round", width: 16, height: 16 };
+  switch (name) {
+    case 'dashboard': return (<svg viewBox="0 0 24 24" className={className} {...c}><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="11" width="7" height="10" rx="1.5"/><rect x="3" y="15" width="7" height="6" rx="1.5"/></svg>);
+    case 'mic':       return (<svg viewBox="0 0 24 24" className={className} {...c}><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/><path d="M9 21h6"/></svg>);
+    case 'venue':     return (<svg viewBox="0 0 24 24" className={className} {...c}><path d="M3 21V10l9-6 9 6v11"/><path d="M9 21v-6h6v6"/><path d="M3 21h18"/></svg>);
+    case 'fan':       return (<svg viewBox="0 0 24 24" className={className} {...c}><circle cx="12" cy="8" r="3.2"/><path d="M5 20c1.4-3.6 4-5.4 7-5.4S17.6 16.4 19 20"/></svg>);
+    case 'suspend':   return (<svg viewBox="0 0 24 24" className={className} {...c}><circle cx="12" cy="12" r="9"/><path d="M5.6 5.6l12.8 12.8"/></svg>);
+    case 'search':    return (<svg viewBox="0 0 24 24" className={className} {...c}><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.2-3.2"/></svg>);
+    case 'bell':      return (<svg viewBox="0 0 24 24" className={className} {...c}><path d="M6 16V11a6 6 0 1 1 12 0v5l1.5 2h-15L6 16z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg>);
+    case 'chevron':   return (<svg viewBox="0 0 24 24" className={className} {...c}><path d="M6 9l6 6 6-6"/></svg>);
+    case 'sort':      return (<svg viewBox="0 0 24 24" className={className} {...c}><path d="M8 6v12"/><path d="M5 9l3-3 3 3"/><path d="M16 18V6"/><path d="M13 15l3 3 3-3"/></svg>);
+    case 'sortAsc':   return (<svg viewBox="0 0 24 24" className={className} {...c}><path d="M12 19V5"/><path d="M6 11l6-6 6 6"/></svg>);
+    case 'sortDesc':  return (<svg viewBox="0 0 24 24" className={className} {...c}><path d="M12 5v14"/><path d="M6 13l6 6 6-6"/></svg>);
+    case 'export':    return (<svg viewBox="0 0 24 24" className={className} {...c}><path d="M12 3v12"/><path d="M8 7l4-4 4 4"/><path d="M5 21h14"/></svg>);
+    case 'more':      return (<svg viewBox="0 0 24 24" className={className} {...c}><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></svg>);
+    case 'arrowUp':   return (<svg viewBox="0 0 24 24" className={className} {...c}><path d="M12 19V5"/><path d="M6 11l6-6 6 6"/></svg>);
+    case 'arrowDown': return (<svg viewBox="0 0 24 24" className={className} {...c}><path d="M12 5v14"/><path d="M6 13l6 6 6-6"/></svg>);
+    case 'check':     return (<svg viewBox="0 0 24 24" className={className} {...c}><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>);
+    case 'warn':      return (<svg viewBox="0 0 24 24" className={className} {...c}><path d="M12 3l10 18H2L12 3z"/><path d="M12 10v5"/><circle cx="12" cy="18" r=".6" fill={stroke}/></svg>);
+    case 'close':     return (<svg viewBox="0 0 24 24" className={className} {...c}><path d="M6 6l12 12M18 6l-12 12"/></svg>);
+    case 'pin':       return (<svg viewBox="0 0 24 24" className={className} {...c}><path d="M12 21v-7"/><path d="M12 14a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"/></svg>);
+    case 'plus':      return (<svg viewBox="0 0 24 24" className={className} {...c}><path d="M12 5v14"/><path d="M5 12h14"/></svg>);
+    case 'logout':    return (<svg viewBox="0 0 24 24" className={className} {...c}><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3"/><path d="M10 17l-5-5 5-5"/><path d="M5 12h11"/></svg>);
+    case 'user':      return (<svg viewBox="0 0 24 24" className={className} {...c}><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20c1.5-3.6 4.4-5.4 7.5-5.4S18 16.4 19.5 20"/></svg>);
+    case 'mail':      return (<svg viewBox="0 0 24 24" className={className} {...c}><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg>);
+    case 'calendar':  return (<svg viewBox="0 0 24 24" className={className} {...c}><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/></svg>);
+    default: return null;
+  }
+};
+
+/* ============================================================
+   ROLE + TOAST CONTEXT
+   ============================================================ */
+const AppCtx = createContext(null);
+const useApp = () => useContext(AppCtx);
+
+/* ============================================================
+   STATIC DATA — generated rows for tables
+   ============================================================ */
+const FIRST = ['Marcus','Priya','Devon','Iris','Tomas','Yuki','Aisha','Leo','Mira','Jordan','Nadia','Sam','Quinn','Hugo','Selma','Theo','Vera','Owen','Rae','Nico','Ben','Carla','Daria','Eli','Fern','Gabe','Hana','Ivan','Jules','Kai','Lena','Maya','Noor','Otto','Paloma','Reza','Sloane','Tariq'];
+const LAST  = ['Hale','Anand','Carter','Okafor','Reyes','Tanaka','Khan','Bell','Sato','Vance','Ortiz','Singh','Patel','Romano','Hughes','Park','Costa','Boyd','Cole','Diaz','Frost','Gunn','Hwang','Ito','Joly','Kerr','Lima','Moss','Noble','Owens','Page','Quinn','Roca','Stone','Tate','Udo','Voss','Webb'];
+const STAGES = ['Mic Drop Marcus','Sharp Anand','Devon Loud','Iris in 4D','Reyes After Dark','Yuki Says So','Aisha on Fire','Late Night Leo','Mira Unplugged','Jordan Tonight','Nadia Maybe','Sam I Yam','Quinn Quintet','Hugo Talks','Selma Speaks','Theo Tonight','Vera Verbose','Owen Owens','Rae of Light','Nico Knows'];
+const VENUES_NAMES = ['The Laugh Loft','Riverside Comedy','Midnight Mic','Basement Bar','The Punchline','Cellar Door','Open Mic Co.','Rooftop Comedy','The Joke Joint','Velvet Stage','Echo Hall','Last Laugh','Bright Spot','Folk & Funny','Side Stage','Loud House','Comedy Annex','Park & Punch','Saloon 7','The Yard','Backline','Stand & Deliver','Hidden Mic','The Booking','Mainline','Halfway House'];
+const CITIES = ['Brooklyn, NY','Austin, TX','Chicago, IL','Los Angeles, CA','Seattle, WA','Boston, MA','Atlanta, GA','Denver, CO','Portland, OR','Nashville, TN','Miami, FL','Philadelphia, PA','Minneapolis, MN','Toronto, ON','Vancouver, BC'];
+const STREETS = ['12 Hudson St','480 Mission Ave','77 Bleecker St','910 Larkin St','220 King St','55 Pine Way','331 Pearl St','12 Hawthorn Rd','9 Sutter Pl','420 Olive Ln','77 Spring St','201 Jefferson Ave'];
+const TIMES_REL = ['2 minutes ago','14 minutes ago','38 minutes ago','1 hour ago','2 hours ago','5 hours ago','Yesterday','2 days ago','5 days ago','1 week ago','3 weeks ago','1 month ago'];
+
+const seed = (n) => { let x = n; return () => { x = (x*9301 + 49297) % 233280; return x/233280; }; };
+const pick = (rng, arr) => arr[Math.floor(rng()*arr.length)];
+const date = (i) => {
+  const d = new Date(2026, 4, 6); // May 6, 2026
+  d.setDate(d.getDate() - i*3 - 1);
+  return d.toISOString().slice(0,10);
+};
+const addDays = (iso, n) => {
+  const d = new Date(iso);
+  d.setDate(d.getDate() + n);
+  return d.toISOString().slice(0,10);
+};
+const daysBetween = (iso) => {
+  const today = new Date('2026-05-06');
+  const d = new Date(iso);
+  return Math.round((d - today) / 86400000);
+};
+
+const COMEDIANS = (() => {
+  const r = seed(7); const out = [];
+  for (let i=0;i<32;i++){
+    const fn=pick(r,FIRST), ln=pick(r,LAST);
+    out.push({
+      id:'c'+i,
+      name:`${fn} ${ln}`,
+      email:`${fn.toLowerCase()}.${ln.toLowerCase()}@mail.com`,
+      stageName: pick(r,STAGES),
+      videos: Math.floor(r()*120)+2,
+      venuesPerformed: Math.floor(r()*40)+1,
+      followers: Math.floor(r()*22000)+100,
+      joined: date(i),
+      status: r() < 0.18 ? 'Suspended' : (r() < 0.12 ? 'Pending' : 'Active'),
+      invitedBy: 'Asha Menon',
+      inviteSent: date(i),
+      inviteExpires: addDays(date(i), 7),
+      lastReminded: i % 2 === 0 ? date(Math.max(0,i-2)) : null,
+    });
+  }
+  return out;
+})();
+
+const VENUES = (() => {
+  const r = seed(13); const out = [];
+  for (let i=0;i<28;i++){
+    const name = pick(r,VENUES_NAMES) + (i>VENUES_NAMES.length-1 ? ' '+i : '');
+    out.push({
+      id:'v'+i,
+      name,
+      email:`bookings@${name.toLowerCase().replace(/[^a-z]/g,'')}.co`,
+      location: pick(r,CITIES),
+      address: pick(r,STREETS),
+      upcoming: Math.floor(r()*14),
+      joined: date(i+2),
+      status: r() < 0.15 ? 'Suspended' : (r() < 0.12 ? 'Pending' : 'Active'),
+      invitedBy: 'Asha Menon',
+      inviteSent: date(i+2),
+      inviteExpires: addDays(date(i+2), 7),
+      lastReminded: i % 3 === 0 ? date(Math.max(0,i)) : null,
+    });
+  }
+  return out;
+})();
+
+const FANS = (() => {
+  const r = seed(21); const out = [];
+  for (let i=0;i<48;i++){
+    const fn=pick(r,FIRST), ln=pick(r,LAST);
+    out.push({
+      id:'f'+i,
+      name:`${fn} ${ln}`,
+      email:`${fn.toLowerCase()}${i}@mail.com`,
+      location: pick(r,CITIES),
+      joined: date(i+1),
+      following: Math.floor(r()*60)+1,
+      favorites: Math.floor(r()*12)+1,
+      lastActive: date(i+1),
+      status: r() < 0.10 ? 'Suspended' : (r() < 0.10 ? 'Pending' : 'Active'),
+      invitedBy: 'Asha Menon',
+      inviteSent: date(i+1),
+      inviteExpires: addDays(date(i+1), 7),
+      lastReminded: i % 4 === 0 ? date(Math.max(0,i-1)) : null,
+    });
+  }
+  return out;
+})();
+
+const INTERNAL_ROLES = ['Administrator', 'Collaborator', 'Billing'];
+const INTERNAL_USERS = (() => {
+  const r = seed(33); const out = [];
+  const seeds = [
+    { name:'Asha Menon',     email:'asha.menon@superbit.com',   role:'Administrator', joined:'2024-08-12', status:'Active' },
+    { name:'Devon Carter',   email:'devon.carter@superbit.com', role:'Administrator', joined:'2024-09-03', status:'Active' },
+    { name:'Priya Anand',    email:'priya.anand@superbit.com',  role:'Collaborator',  joined:'2025-01-22', status:'Active' },
+    { name:'Marcus Hale',    email:'marcus.hale@superbit.com',  role:'Collaborator',  joined:'2025-03-10', status:'Active' },
+    { name:'Iris Okafor',    email:'iris.okafor@superbit.com',  role:'Collaborator',  joined:'2025-05-18', status:'Pending' },
+    { name:'Tomas Reyes',    email:'tomas.reyes@superbit.com',  role:'Billing',       joined:'2024-11-29', status:'Active' },
+    { name:'Yuki Tanaka',    email:'yuki.tanaka@superbit.com',  role:'Billing',       joined:'2025-02-14', status:'Active' },
+    { name:'Leo Bell',       email:'leo.bell@superbit.com',     role:'Collaborator',  joined:'2025-04-02', status:'Suspended' },
+    { name:'Mira Sato',      email:'mira.sato@superbit.com',    role:'Collaborator',  joined:'2025-06-21', status:'Active' },
+    { name:'Sam Singh',      email:'sam.singh@superbit.com',    role:'Administrator', joined:'2025-07-08', status:'Pending' },
+  ];
+  seeds.forEach((s,i) => out.push({ id:'iu'+i, ...s }));
+  return out;
+})();
+
+/* ============================================================
+   PRIMITIVES
+   ============================================================ */
+function StatusBadge({ status }) {
+  const map = {
+    Active:    { bg:'bg-[#E6F4EA]', tx:'text-[#2E7D32]', dot:'bg-[#2E7D32]' },
+    Suspended: { bg:'bg-[#FDECEC]', tx:'text-[#D32F2F]', dot:'bg-[#D32F2F]' },
+    Pending:   { bg:'bg-[#FFF4E0]', tx:'text-[#A8660B]', dot:'bg-[#D58A1E]' },
+  };
+  const s = map[status] || map.Active;
+  return (
+    <span className={["inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full font-mont font-semibold text-[11px]", s.bg, s.tx].join(' ')}>
+      <span className={["w-1.5 h-1.5 rounded-full", s.dot].join(' ')} />
+      {status}
+    </span>
+  );
+}
+
+const ROLE_BADGE = {
+  Administrator:'bg-[#E6F0FF] text-[#0F4C94]',
+  Collaborator: 'bg-[#E8F5E9] text-[#1F6F33]',
+  Billing:      'bg-[#F3E8FF] text-[#6B21A8]',
+};
+function RoleBadge({ role }) {
+  return (
+    <span className={["inline-flex items-center px-2 py-0.5 rounded-md font-mont font-semibold text-[11px]", ROLE_BADGE[role]||''].join(' ')}>
+      {role}
+    </span>
+  );
+}
+
+const TYPE_BADGE = {
+  Comedian:'bg-[#E6F0FF] text-[#0F4C94]',
+  Venue:   'bg-[#E8F5E9] text-[#1F6F33]',
+  Fan:     'bg-[#F3E8FF] text-[#6B21A8]',
+};
+function TypeBadge({ type }) {
+  return (
+    <span className={["inline-flex items-center px-2 py-0.5 rounded-md font-mont font-semibold text-[11px]", TYPE_BADGE[type]||''].join(' ')}>
+      {type}
+    </span>
+  );
+}
+
+function SearchBar({ value, onChange, placeholder = "Search…", width = 280 }) {
+  return (
+    <div className="relative" style={{width}}>
+      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9AA4B2]">
+        <Icon name="search" className="w-[16px] h-[16px]" />
+      </span>
+      <input
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        placeholder={placeholder}
+        onFocus={e => e.target.placeholder = placeholder}
+        onBlur={e => e.target.placeholder = ''}
+        className="font-hanken w-full h-[36px] pl-9 pr-3 rounded-lg bg-sb-search border border-[#E5E7EB] text-[13px] text-sb-text outline-none focus:border-sb-primary/40 focus:bg-white"
+      />
+    </div>
+  );
+}
+
+function ExportCSVButton({ rows, columns, filename, disabled }) {
+  const onClick = () => {
+    const head = columns.map(c => c.label).join(',');
+    const body = rows.map(r => columns.map(c => {
+      const v = c.csv ? c.csv(r) : (r[c.key] ?? '');
+      const s = String(v).replace(/"/g,'""');
+      return /[",\n]/.test(s) ? `"${s}"` : s;
+    }).join(',')).join('\n');
+    const blob = new Blob([head+'\n'+body], {type:'text/csv'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename || 'export.csv'; a.click();
+    URL.revokeObjectURL(url);
+  };
+  return (
+    <button
+      disabled={disabled}
+      onClick={onClick}
+      className={[
+        "h-9 px-3 rounded-lg font-mont font-semibold text-[13px] inline-flex items-center gap-2 border transition-colors",
+        disabled
+          ? "bg-sb-page text-sb-muted border-sb-border cursor-not-allowed"
+          : "bg-white text-sb-text border-sb-border hover:bg-sb-page"
+      ].join(' ')}
+      title={disabled ? "Employees can't export" : "Export CSV"}
+    >
+      <Icon name="export" className="w-[15px] h-[15px]" />
+      Export CSV
+    </button>
+  );
+}
+
+function SortDropdown({ columns, sortKey, sortDir, onChange }) {
+  const [open, setOpen] = useState(false);
+  const current = columns.find(c => c.key === sortKey);
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen(o => !o)}
+        onBlur={() => setTimeout(() => setOpen(false), 120)}
+        className="h-9 px-3 rounded-lg border border-sb-border bg-white text-sb-text font-mont font-semibold text-[13px] inline-flex items-center gap-2 hover:bg-sb-page"
+      >
+        <Icon name="sort" className="w-[15px] h-[15px]" />
+        Sort: {current?.label ?? '—'} {sortDir === 'asc' ? '↑' : '↓'}
+      </button>
+      {open && (
+        <div className="absolute left-0 mt-1 w-[220px] bg-white border border-sb-border rounded-lg shadow-card z-20 p-1">
+          {columns.filter(c => c.sortable !== false).map(c => (
+            <button key={c.key}
+              onMouseDown={() => { onChange(c.key, sortKey===c.key && sortDir==='asc' ? 'desc' : 'asc'); setOpen(false); }}
+              className={[
+                "w-full text-left px-2.5 py-1.5 rounded-md font-mont text-[13px] flex items-center justify-between",
+                sortKey === c.key ? "bg-sb-page text-sb-primary font-semibold" : "text-sb-text hover:bg-sb-page"
+              ].join(' ')}>
+              {c.label}
+              {sortKey === c.key && <Icon name={sortDir==='asc'?'sortAsc':'sortDesc'} className="w-3.5 h-3.5" />}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Pagination({ page, pageCount, onPage }) {
+  if (pageCount <= 1) return null;
+  const pages = [];
+  const push = (p) => pages.push(p);
+  push(1);
+  if (page > 3) push('…1');
+  for (let p = Math.max(2, page-1); p <= Math.min(pageCount-1, page+1); p++) push(p);
+  if (page < pageCount-2) push('…2');
+  if (pageCount > 1) push(pageCount);
+
+  const Btn = ({children, active, onClick, disabled, title}) => (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      title={title}
+      className={[
+        "h-8 min-w-[32px] px-2 rounded-md font-mont text-[12px] font-semibold transition-colors",
+        active ? "bg-sb-primary text-white"
+               : disabled ? "border border-sb-border text-sb-border cursor-not-allowed"
+                          : "border border-sb-border text-sb-text hover:bg-sb-page"
+      ].join(' ')}
+    >{children}</button>
+  );
+
+  return (
+    <div className="flex items-center gap-1">
+      <Btn onClick={() => onPage(page-1)} disabled={page===1} title="Previous">‹</Btn>
+      {pages.map((p,i) => typeof p === 'string'
+        ? <span key={i} className="px-1 text-sb-muted text-[12px]">…</span>
+        : <Btn key={i} active={p===page} onClick={() => onPage(p)}>{p}</Btn>)}
+      <Btn onClick={() => onPage(page+1)} disabled={page===pageCount} title="Next">›</Btn>
+    </div>
+  );
+}
+
+/* Buttons */
+function SuspendButton({ onClick, size = 'sm' }) {
+  return (
+    <button onClick={onClick}
+      className={[
+        "rounded-md font-mont font-semibold text-[12px] text-white bg-sb-error hover:brightness-110 transition",
+        size==='sm' ? "h-8 px-3" : "h-10 px-4 text-[13px]"
+      ].join(' ')}>
+      Suspend
+    </button>
+  );
+}
+function ActivateButton({ onClick, size = 'sm' }) {
+  return (
+    <button onClick={onClick}
+      className={[
+        "rounded-md font-mont font-semibold text-[12px] text-white bg-sb-primary hover:brightness-110 transition",
+        size==='sm' ? "h-8 px-3" : "h-10 px-4 text-[13px]"
+      ].join(' ')}>
+      Activate
+    </button>
+  );
+}
+
+/* ============================================================
+   MODAL + TOAST
+   ============================================================ */
+function ConfirmationModal({ open, kind, name, onCancel, onConfirm }) {
+  if (!open) return null;
+  const isSuspend = kind === 'suspend';
+  return (
+    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40">
+      <div className="sb-modal-in bg-white border border-sb-border rounded-2xl shadow-modal w-[440px] p-6">
+        <div className="flex items-start gap-3">
+          <div className={[
+            "w-10 h-10 rounded-full flex items-center justify-center shrink-0",
+            isSuspend ? "bg-[#FDECEC] text-[#D32F2F]" : "bg-[#E6F0FF] text-sb-primary"
+          ].join(' ')}>
+            <Icon name={isSuspend ? 'warn' : 'check'} className="w-5 h-5" />
+          </div>
+          <div className="flex-1">
+            <h3 className="font-mont font-semibold text-[16px] text-sb-text">
+              {isSuspend ? 'Suspend account' : 'Reactivate account'}
+            </h3>
+            <p className="font-mont text-[13px] text-sb-muted mt-1.5 leading-relaxed">
+              {isSuspend
+                ? `Are you sure you want to suspend this comedian account?`
+                : `Do you want to reactivate this account?`}
+            </p>
+            {name && (
+              <div className="mt-3 px-3 py-2 rounded-md bg-sb-page border border-sb-border font-mont text-[13px] text-sb-text">
+                {name}
+              </div>
+            )}
+          </div>
+          <button onClick={onCancel} className="text-sb-muted hover:text-sb-text -mr-1 -mt-1 p-1">
+            <Icon name="close" className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="mt-5 flex items-center justify-end gap-2">
+          <button onClick={onCancel}
+            className="h-10 px-4 rounded-md border border-sb-border bg-white text-sb-text font-mont font-semibold text-[13px] hover:bg-sb-page">
+            Cancel
+          </button>
+          {isSuspend
+            ? <SuspendButton onClick={onConfirm} size="lg" />
+            : <ActivateButton onClick={onConfirm} size="lg" />}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function UserDetailModal({ open, row, onClose, onSuspend, onActivate, onResendInvite, onCancelInvite }) {
+  const { role } = useApp();
+  if (!open || !row) return null;
+  const type = row.type || (row.stageName ? 'Comedian' : (row.upcoming != null || row.address ? 'Venue' : (row.role ? 'Internal' : 'Fan')));
+  const isPending = row.status === 'Pending';
+  const fields = [];
+  if (row.email) fields.push({ label:'Email', value: row.email, mono:true });
+  if (row.role) fields.push({ label:'Role', value: row.role });
+  if (!isPending && row.stageName) fields.push({ label:'Stage Name', value: row.stageName });
+  if (row.location && row.location !== '—') fields.push({ label:'Location', value: row.location });
+  if (row.address && row.address !== '—') fields.push({ label:'Address', value: row.address });
+  if (!isPending && row.videos != null) fields.push({ label:'Videos Uploaded', value: row.videos });
+  if (!isPending && row.venuesPerformed != null) fields.push({ label:'Venues Performed', value: row.venuesPerformed });
+  if (!isPending && row.followers != null) fields.push({ label:'Followers', value: row.followers.toLocaleString() });
+  if (!isPending && row.upcoming != null) fields.push({ label:'Upcoming Shows', value: row.upcoming });
+  if (!isPending && row.following != null) fields.push({ label:'Following', value: row.following });
+  if (!isPending && row.favorites != null) fields.push({ label:'Favorite Comedians', value: row.favorites });
+  if (!isPending && row.lastActive) fields.push({ label:'Last Active', value: row.lastActive });
+  if (!isPending && row.joined) fields.push({ label:'Joined Date', value: row.joined });
+
+  const expiresIn = isPending && row.inviteExpires ? daysBetween(row.inviteExpires) : null;
+  const expired = expiresIn != null && expiresIn < 0;
+
+  return (
+    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40" onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} className="sb-modal-in bg-white border border-sb-border rounded-2xl shadow-modal w-[560px] max-w-[92vw] overflow-hidden">
+        <div className="px-6 py-5 bg-sb-page border-b border-sb-border flex items-start gap-4">
+          <div className="w-14 h-14 rounded-full bg-gradient-to-br from-sb-primary to-[#1F4B8F] text-white flex items-center justify-center font-mont font-semibold text-[18px] shrink-0">
+            {row.name.split(' ').map(s=>s[0]).slice(0,2).join('')}
+          </div>
+          <div className="flex-1 min-w-0">
+            <h3 className="font-mont font-semibold text-[18px] text-sb-text truncate">{row.name}</h3>
+            <div className="mt-1 flex items-center gap-2">
+              <TypeBadge type={type} />
+              <StatusBadge status={row.status} />
+            </div>
+          </div>
+          <button onClick={onClose} className="text-sb-muted hover:text-sb-text p-1 -mt-1 -mr-1">
+            <Icon name="close" className="w-4 h-4" />
+          </button>
+        </div>
+
+        {isPending && (
+          <div className={["px-6 py-3 border-b border-sb-border flex items-center gap-2 font-mont text-[12.5px]",
+            expired ? "bg-[#FDECEC] text-[#A8260B]" : "bg-[#FFF8E6] text-[#8A5A0B]"].join(' ')}>
+            <Icon name="warn" className="w-4 h-4 shrink-0" />
+            {expired
+              ? <span>Invite expired {Math.abs(expiresIn)} day{Math.abs(expiresIn)===1?'':'s'} ago. Resend to send a fresh invite.</span>
+              : <span>Awaiting signup. Invite expires in {expiresIn} day{expiresIn===1?'':'s'}.</span>}
+          </div>
+        )}
+
+        <div className="px-6 py-5 grid grid-cols-2 gap-x-6 gap-y-4">
+          {fields.map(f => (
+            <div key={f.label}>
+              <div className="font-mont font-semibold text-[11px] tracking-[0.08em] uppercase text-sb-muted">{f.label}</div>
+              <div className={["mt-1 text-[13.5px] text-sb-text", f.mono?'font-hanken':'font-mont'].join(' ')}>{f.value}</div>
+            </div>
+          ))}
+        </div>
+
+        {isPending && (
+          <div className="px-6 pb-5">
+            <div className="rounded-lg border border-sb-border bg-sb-page p-4">
+              <div className="font-mont font-semibold text-[11px] tracking-[0.08em] uppercase text-sb-muted mb-3">Invite Status</div>
+              <div className="grid grid-cols-2 gap-x-6 gap-y-3 font-mont text-[13px]">
+                {row.invitedBy && (<div><div className="text-sb-muted text-[11px]">Invited By</div><div className="text-sb-text">{row.invitedBy}</div></div>)}
+                {row.inviteSent && (<div><div className="text-sb-muted text-[11px]">Invite Sent</div><div className="text-sb-text">{row.inviteSent}</div></div>)}
+                {row.inviteExpires && (<div><div className="text-sb-muted text-[11px]">Expires</div><div className={expired?"text-sb-error font-semibold":"text-sb-text"}>{row.inviteExpires}</div></div>)}
+                <div><div className="text-sb-muted text-[11px]">Last Reminder</div><div className="text-sb-text">{row.lastReminded || '—'}</div></div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="px-6 py-4 border-t border-sb-border bg-white flex items-center justify-end gap-2">
+          <button onClick={onClose} className="h-10 px-4 rounded-md border border-sb-border bg-white text-sb-text font-mont font-semibold text-[13px] hover:bg-sb-page">
+            Close
+          </button>
+          {role === 'Admin' && (
+            isPending
+              ? (
+                <>
+                  <button
+                    onClick={() => { onCancelInvite && onCancelInvite(row); onClose(); }}
+                    className="h-10 px-4 rounded-md border border-sb-border bg-white text-sb-error font-mont font-semibold text-[13px] hover:bg-[#FDECEC]"
+                  >Cancel Invite</button>
+                  <button
+                    onClick={() => { onResendInvite && onResendInvite(row); onClose(); }}
+                    className="h-10 px-4 rounded-md bg-sb-primary text-white font-mont font-semibold text-[13px] inline-flex items-center gap-2 hover:brightness-110"
+                  ><Icon name="mail" className="w-4 h-4" />Resend Invite</button>
+                </>
+              )
+              : (row.status === 'Active'
+                  ? <SuspendButton onClick={() => { onClose(); onSuspend(row); }} size="lg" />
+                  : <ActivateButton onClick={() => { onClose(); onActivate(row); }} size="lg" />)
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AddMemberModal({ open, kind, onClose, onAdd }) {
+  const [email, setEmail] = useState('');
+  const [err, setErr] = useState('');
+  useEffect(() => { if (open) { setEmail(''); setErr(''); } }, [open, kind]);
+  if (!open) return null;
+
+  const titles = { Comedian:'Invite Comedian', Venue:'Invite Venue', Fan:'Invite Fan' };
+
+  const submit = () => {
+    if (!email.trim()) { setErr('Email is required'); return; }
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { setErr('Enter a valid email'); return; }
+    onAdd(kind, { email });
+  };
+
+  return (
+    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40" onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} className="sb-modal-in bg-white border border-sb-border rounded-2xl shadow-modal w-[460px] max-w-[92vw] overflow-hidden">
+        <div className="px-6 py-4 border-b border-sb-border flex items-center">
+          <div>
+            <h3 className="font-mont font-semibold text-[16px] text-sb-text">{titles[kind]}</h3>
+            <p className="font-mont text-[12.5px] text-sb-muted mt-0.5">Send an invite by email.</p>
+          </div>
+          <button onClick={onClose} className="ml-auto text-sb-muted hover:text-sb-text"><Icon name="close" className="w-4 h-4" /></button>
+        </div>
+        <div className="px-6 py-5">
+          <label className="block">
+            <div className="font-mont font-semibold text-[11px] tracking-[0.08em] uppercase text-sb-muted">Email Address</div>
+            <div className="relative mt-1.5">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9AA4B2]">
+                <Icon name="mail" className="w-[16px] h-[16px]" />
+              </span>
+              <input
+                type="email"
+                value={email}
+                onChange={e => { setEmail(e.target.value); if (err) setErr(''); }}
+                placeholder="you@gmail.com"
+                onFocus={e => e.target.placeholder = 'you@gmail.com'}
+                onBlur={e => e.target.placeholder = ''}
+                className={[
+                  "font-hanken w-full h-[42px] pl-10 pr-3 rounded-lg bg-white border text-[14px] text-sb-text outline-none focus:border-sb-primary/50",
+                  err ? "border-sb-error" : "border-sb-border"
+                ].join(' ')}
+              />
+            </div>
+            {err && <div className="mt-1 font-mont text-[11px] text-sb-error">{err}</div>}
+          </label>
+        </div>
+        <div className="px-6 py-4 border-t border-sb-border bg-sb-page flex items-center justify-end gap-2">
+          <button onClick={onClose} className="h-10 px-4 rounded-md border border-sb-border bg-white text-sb-text font-mont font-semibold text-[13px] hover:bg-white/70">
+            Cancel
+          </button>
+          <button onClick={submit} className="h-10 px-4 rounded-md bg-sb-primary text-white font-mont font-semibold text-[13px] inline-flex items-center gap-2 hover:brightness-110">
+            <Icon name="mail" className="w-4 h-4" />
+            Invite
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Toasts({ toasts, dismiss }) {
+  return (
+    <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2">
+      {toasts.map(t => (
+        <div key={t.id} className="sb-toast-in bg-white border border-sb-border rounded-xl shadow-modal w-[320px] p-3.5 flex items-start gap-3">
+          <div className={[
+            "w-8 h-8 rounded-full flex items-center justify-center shrink-0",
+            t.tone === 'danger' ? "bg-[#FDECEC] text-[#D32F2F]" : "bg-[#E6F4EA] text-[#2E7D32]"
+          ].join(' ')}>
+            <Icon name={t.tone==='danger' ? 'warn' : 'check'} className="w-4 h-4" />
+          </div>
+          <div className="flex-1">
+            <div className="font-mont font-semibold text-[13px] text-sb-text">{t.title}</div>
+            {t.body && <div className="font-mont text-[12px] text-sb-muted mt-0.5">{t.body}</div>}
+          </div>
+          <button onClick={() => dismiss(t.id)} className="text-sb-muted hover:text-sb-text -mt-1">
+            <Icon name="close" className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ============================================================
+   DATA TABLE (reusable)
+   ============================================================ */
+function FilterDropdown({ filters, values, onChange }) {
+  const [open, setOpen] = useState(false);
+  const activeCount = Object.values(values).filter(v => v && v !== 'All').length;
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen(o => !o)}
+        onBlur={() => setTimeout(() => setOpen(false), 160)}
+        className="h-9 px-3 rounded-lg border border-sb-border bg-white text-sb-text font-mont font-semibold text-[13px] inline-flex items-center gap-2 hover:bg-sb-page"
+      >
+        <svg viewBox="0 0 24 24" className="w-[15px] h-[15px]" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M4 5h16M7 12h10M10 19h4"/></svg>
+        Filters
+        {activeCount > 0 && <span className="ml-0.5 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-sb-primary text-white text-[10px]">{activeCount}</span>}
+      </button>
+      {open && (
+        <div className="absolute left-0 mt-1 w-[260px] bg-white border border-sb-border rounded-lg shadow-card z-20 p-3 sb-modal-in">
+          {filters.map(f => (
+            <div key={f.key} className="mb-3 last:mb-0">
+              <div className="font-mont font-semibold text-[11px] tracking-[0.08em] uppercase text-sb-muted mb-1.5">{f.label}</div>
+              <div className="flex flex-wrap gap-1.5">
+                {f.options.map(opt => {
+                  const sel = (values[f.key] || 'All') === opt;
+                  return (
+                    <button
+                      key={opt}
+                      onMouseDown={() => onChange(f.key, opt)}
+                      className={[
+                        "px-2.5 py-1 rounded-full font-mont text-[12px] border transition-colors",
+                        sel ? "bg-sb-primary text-white border-sb-primary" : "bg-white text-sb-text border-sb-border hover:bg-sb-page"
+                      ].join(' ')}
+                    >{opt}</button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+          {activeCount > 0 && (
+            <button
+              onMouseDown={() => filters.forEach(f => onChange(f.key, 'All'))}
+              className="w-full mt-1 text-center font-mont text-[12px] text-sb-primary hover:underline"
+            >Clear all</button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DataTable({ rows, columns: rawColumns, pageSize = 8, emptyText = 'No matching rows.', onRowClick, addLabel, onAdd, hideSearch = false, hideSort = false, hideToolbar = false, showResultCount = false, searchPlaceholder, filters }) {
+  const { role } = useApp();
+  const columns = useMemo(
+    () => rawColumns.filter(c => !(role !== 'Admin' && c.key === 'actions')),
+    [rawColumns, role]
+  );
+  const [query, setQuery] = useState('');
+  const [sortKey, setSortKey] = useState(columns[0].key);
+  const [sortDir, setSortDir] = useState('asc');
+  const [page, setPage] = useState(1);
+  const [filterValues, setFilterValues] = useState(() => {
+    const init = {};
+    (filters || []).forEach(f => init[f.key] = 'All');
+    return init;
+  });
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    let list = rows;
+    if (q) {
+      list = list.filter(r => columns.some(c => {
+        const v = c.search ? c.search(r) : r[c.key];
+        return String(v ?? '').toLowerCase().includes(q);
+      }));
+    }
+    if (filters) {
+      filters.forEach(f => {
+        const v = filterValues[f.key];
+        if (v && v !== 'All') {
+          list = list.filter(r => f.match ? f.match(r, v) : String(r[f.key] ?? '') === v);
+        }
+      });
+    }
+    list = [...list].sort((a, b) => {
+      const av = a[sortKey] ?? '', bv = b[sortKey] ?? '';
+      const na = typeof av === 'number', nb = typeof bv === 'number';
+      const cmp = (na && nb) ? (av - bv) : String(av).localeCompare(String(bv));
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+    return list;
+  }, [rows, query, sortKey, sortDir, columns, filters, filterValues]);
+
+  const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const safePage  = Math.min(page, pageCount);
+  const view = filtered.slice((safePage-1)*pageSize, safePage*pageSize);
+
+  useEffect(() => { setPage(1); }, [query, sortKey, sortDir]);
+
+  const toggleSort = (k) => {
+    if (sortKey === k) setSortDir(d => d==='asc'?'desc':'asc');
+    else { setSortKey(k); setSortDir('asc'); }
+  };
+
+  return (
+    <section className="bg-sb-card border border-sb-border rounded-2xl shadow-card overflow-hidden">
+      {!hideToolbar && (
+      <div className="flex items-center gap-3 px-5 py-4 border-b border-sb-border flex-wrap">
+        {!hideSearch && <SearchBar value={query} onChange={setQuery} placeholder={searchPlaceholder || "Search"} />}
+        {filters && <FilterDropdown filters={filters} values={filterValues} onChange={(k,v)=>setFilterValues(s=>({...s,[k]:v}))} />}
+        <div className="ml-auto flex items-center gap-2">
+          {showResultCount && <span className="font-mont text-[12px] text-sb-muted hidden md:inline">{filtered.length} results</span>}
+          <ExportCSVButton rows={filtered} columns={columns} filename="superbit-export.csv" disabled={role !== 'Admin'} />
+          {addLabel && role === 'Admin' && (
+            <button
+              onClick={onAdd}
+              className="h-9 px-3 rounded-lg bg-sb-primary text-white font-mont font-semibold text-[13px] inline-flex items-center gap-1.5 hover:brightness-110"
+            >
+              <Icon name="plus" className="w-[15px] h-[15px]" />
+              {addLabel}
+            </button>
+          )}
+        </div>
+      </div>
+      )}
+
+      <div className="overflow-x-auto scroll-thin max-h-[560px]">
+        <table className="w-full">
+          <thead className="bg-sb-th sticky top-0 z-[1]">
+            <tr>
+              {columns.map(col => (
+                <th key={col.key} className={[
+                  "text-left font-mont font-semibold text-[11px] tracking-[0.08em] text-[#6B7280] py-3 px-5 select-none whitespace-nowrap",
+                  col.key === 'actions' ? '' : 'uppercase',
+                  col.align === 'right' ? 'text-right' : ''
+                ].join(' ')}>
+                  {col.sortable === false ? col.label : (
+                    <button onClick={() => toggleSort(col.key)} className="inline-flex items-center gap-1 hover:text-sb-text">
+                      {col.label}
+                      {sortKey === col.key
+                        ? <Icon name={sortDir==='asc'?'sortAsc':'sortDesc'} className="w-3.5 h-3.5" />
+                        : <Icon name="sort" className="w-3.5 h-3.5 opacity-50" />}
+                    </button>
+                  )}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {view.map(r => (
+              <tr key={r.id}
+                onClick={onRowClick ? () => onRowClick(r) : undefined}
+                className={[
+                  "border-t border-sb-border hover:bg-sb-rowhover transition-colors",
+                  onRowClick ? "cursor-pointer" : ""
+                ].join(' ')}>
+                {columns.map(col => (
+                  <td key={col.key}
+                    onClick={col.key === 'actions' ? (e) => e.stopPropagation() : undefined}
+                    className={[
+                    "py-3.5 px-5 font-mont text-[13px] text-sb-text align-middle",
+                    col.align === 'right' ? 'text-right' : ''
+                  ].join(' ')}>
+                    {col.render ? col.render(r) : r[col.key]}
+                  </td>
+                ))}
+              </tr>
+            ))}
+            {view.length === 0 && (
+              <tr><td colSpan={columns.length} className="py-12 text-center font-mont text-[13px] text-sb-muted">{emptyText}</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="flex items-center justify-between px-5 py-3 border-t border-sb-border">
+        <div className="font-mont text-[12px] text-sb-muted">
+          Showing {(safePage-1)*pageSize + 1}–{Math.min(safePage*pageSize, filtered.length)} of {filtered.length}
+        </div>
+        <Pagination page={safePage} pageCount={pageCount} onPage={setPage} />
+      </div>
+    </section>
+  );
+}
+
+/* ============================================================
+   SHARED ROW HELPERS
+   ============================================================ */
+function NameCell({ name, sub }) {
+  return (
+    <div className="flex items-center gap-3 min-w-[220px]">
+      <div className="w-8 h-8 rounded-full bg-sb-page border border-sb-border text-sb-text font-mont font-semibold text-[12px] flex items-center justify-center shrink-0">
+        {name.split(' ').map(s => s[0]).slice(0,2).join('')}
+      </div>
+      <div className="leading-tight min-w-0">
+        <div className="font-mont font-semibold text-[13.5px] text-sb-text truncate">{name}</div>
+        {sub && <div className="font-hanken text-[12px] text-sb-muted truncate">{sub}</div>}
+      </div>
+    </div>
+  );
+}
+
+function ActionsCell({ row, onSuspend, onActivate, onResendInvite }) {
+  const { role } = useApp();
+  if (role !== 'Admin') return <span className="font-mont text-[11px] text-sb-muted">—</span>;
+  if (row.status === 'Pending') {
+    return (
+      <button
+        onClick={() => onResendInvite && onResendInvite(row)}
+        className="h-8 px-3 rounded-md font-mont font-semibold text-[12px] text-sb-primary border border-sb-primary/40 bg-white hover:bg-[#EEF3FB] inline-flex items-center gap-1.5"
+      >
+        <Icon name="mail" className="w-3.5 h-3.5" />
+        Resend
+      </button>
+    );
+  }
+  return row.status === 'Active'
+    ? <SuspendButton onClick={() => onSuspend(row)} />
+    : <ActivateButton onClick={() => onActivate(row)} />;
+}
+
+/* ============================================================
+   SIDEBAR + TOPBAR
+   ============================================================ */
+const NAV = [
+  { id:'dashboard', label:'Dashboard',  icon:'dashboard' },
+  { id:'comedians', label:'Comedians',  icon:'mic' },
+  { id:'venues',    label:'Venues',     icon:'venue' },
+  { id:'fans',      label:'Fans',       icon:'fan' },
+  { id:'suspended', label:'Suspended Accounts', icon:'suspend' },
+  { id:'internal',  label:'Internal Users', icon:'user' },
+];
+
+function Sidebar({ active, setActive, counts }) {
+  return (
+    <aside className="w-[244px] shrink-0 bg-sb-sidebar text-sb-sidetext flex flex-col h-screen sticky top-0">
+      <div className="px-6 pt-7 pb-8">
+        <svg width="164" height="34" viewBox="0 0 200 42" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Superbit">
+          <path d="M33.2468 17.5572C31.3588 16.6921 29.8219 15.3333 28.7532 13.6183L20.855 34.9923L28.1629 38.3308H28.173L39.1603 18.3715C38.6412 18.458 38.1069 18.4987 37.5725 18.4987C36.0814 18.4987 34.6158 18.1781 33.2519 17.5572H33.2468Z" fill="white"/>
+          <path d="M40.9314 0.732825C39.8372 0.239186 38.7024 0 37.5828 0C36.5701 0 35.5726 0.188295 34.6464 0.559797C34.168 0.748092 33.71 0.977099 33.2724 1.25191C31.9899 2.05089 30.9161 3.23155 30.2393 4.71756C29.1909 7.01272 29.3131 9.5369 30.3411 11.6234C30.8449 12.6616 31.5777 13.598 32.5039 14.341C33.023 14.7583 33.5981 15.1196 34.224 15.4097C34.8601 15.6997 35.5217 15.8982 36.1731 16.0153C36.6464 16.1018 37.1095 16.1425 37.5726 16.1425C38.2698 16.1425 38.9619 16.0458 39.6337 15.8677C39.9339 15.7964 40.2291 15.7048 40.5141 15.5827C40.9925 15.3944 41.4505 15.1654 41.8881 14.8906C43.1706 14.0865 44.2444 12.9109 44.9212 11.4249C46.7685 7.36896 44.9874 2.58524 40.9365 0.727735L40.9314 0.732825Z" fill="white"/>
+          <path d="M28.285 12.0814C28.285 12.0814 20.8499 6.81935 13.3079 9.51146C5.55216 12.285 0 10.9313 0 10.9313C0 10.9313 8.71247 16 8.31043 22.4631C7.85242 29.8677 11.4402 31.8982 11.4402 31.8982C11.4402 31.8982 17.313 28.5598 17.9746 21.8422C18.6005 15.486 23.9847 11.8779 28.2901 12.0865" fill="#FF1240"/>
+          <path d="M62.3562 18.9058C64.1577 18.9058 66.2901 19.2671 68.0916 20.3867L70.1119 16.2748C68.346 15.2671 65.6387 14.6514 62.9364 14.6514C57.2722 14.6514 53.1959 17.1043 53.1959 21.4656C53.1959 28.0305 63.4758 25.7557 63.4758 28.4987C63.4758 29.6539 62.3206 30.3715 59.6895 30.3715C57.2366 30.3715 54.6056 29.6488 52.9465 28.5343L50.7837 32.6107C52.4071 33.7659 55.6539 34.631 59.0789 34.631C64.6717 34.631 68.8549 32.29 68.8549 27.8524C68.8549 21.3944 58.6107 23.6692 58.6107 20.8193C58.6107 19.776 59.7659 18.9058 62.3613 18.9058H62.3562Z" fill="white"/>
+          <path d="M87.2774 14.9364L85.2926 24.7837C84.6056 28.173 82.6565 29.7608 79.8779 29.7608C77.6794 29.7608 76.631 28.6769 76.631 26.7278C76.631 26.2952 76.6667 25.827 76.7735 25.3232L78.8295 14.9364H73.201L71.0738 25.6845C70.8906 26.514 70.8193 27.3079 70.8193 28.0306C70.8193 32.3206 73.6336 34.6311 77.7812 34.6311C80.1272 34.6311 82.3613 33.8728 84.0916 32.2494L83.6947 34.341H89.0331L92.8906 14.9364H87.2621H87.2774Z" fill="white"/>
+          <path d="M107.074 14.6463C104.697 14.6463 102.677 15.4402 101.125 16.8448L101.522 14.9313H96.1832L90.916 41.3333H96.5445L98.458 31.7404C99.7201 33.7252 101.919 34.6259 104.733 34.6259C110.758 34.6259 115.481 29.8677 115.481 23.3384C115.481 17.8219 111.588 14.6463 107.074 14.6463ZM104.081 29.9745C101.267 29.9745 99.6794 28.3155 99.6794 25.6845C99.6794 21.8982 102.056 19.2977 105.338 19.2977C108.153 19.2977 109.771 20.9567 109.771 23.5878C109.771 27.374 107.394 29.9745 104.076 29.9745H104.081Z" fill="white"/>
+          <path d="M127.873 14.6463C121.125 14.6463 116.438 19.4453 116.438 25.9339C116.438 31.201 120.3 34.626 126.356 34.626C129.313 34.626 132.234 33.8321 134.473 32.0305L132.127 28.3155C130.789 29.4708 128.916 30.1171 126.931 30.1171C123.72 30.1171 122.102 28.7837 121.918 26.1476H136.778C136.957 25.2468 137.104 24.2341 137.104 23.1909C137.104 17.9949 133.532 14.6412 127.873 14.6412V14.6463ZM122.315 22.8702C123.074 20.4529 124.916 18.8652 127.618 18.8652C130.32 18.8652 131.944 20.3054 131.944 22.8702H122.315Z" fill="white"/>
+          <path d="M153.089 14.6463C149.949 14.6463 147.572 15.3689 145.837 17.2417L146.305 14.9313H140.967L137.109 34.3359H142.738L144.616 24.9567C145.333 21.313 147.466 19.7608 150.784 19.7608C151.252 19.7608 151.578 19.7964 152.081 19.832L153.089 14.6361V14.6463Z" fill="white"/>
+          <path d="M165.873 14.6463C163.638 14.6463 161.761 15.369 160.285 16.5954L162.086 7.57764H156.458L151.119 34.341H156.458L157.033 31.4555C158.259 33.5827 160.534 34.626 163.526 34.626C169.552 34.626 174.275 29.8677 174.275 23.3385C174.275 17.8219 170.381 14.6463 165.867 14.6463H165.873ZM162.88 29.9746C160.066 29.9746 158.478 28.3156 158.478 25.6845C158.478 21.8982 160.855 19.2977 164.142 19.2977C166.957 19.2977 168.575 20.9568 168.575 23.5878C168.575 27.3741 166.193 29.9746 162.88 29.9746Z" fill="white"/>
+          <path d="M181.888 12.229C184.122 12.229 185.639 10.8244 185.639 8.76841C185.639 7.18063 184.305 5.95416 182.32 5.95416C180.086 5.95416 178.605 7.43508 178.605 9.30785C178.605 10.9313 179.903 12.229 181.888 12.229Z" fill="white"/>
+          <path d="M194.3 19.6998H199.135L200 15.369H195.165L196.102 10.6412H190.473L189.537 15.369H178.127L174.275 34.341H179.868L182.779 19.6998H188.672L187.12 27.5267C187.008 28.1018 186.942 28.6819 186.942 29.2214C186.942 32.6107 189.394 34.6311 192.998 34.6311C194.692 34.6311 196.422 34.341 197.832 33.4758L197.003 29.4708C196.285 29.9033 195.486 30.1578 194.728 30.1578C193.323 30.1578 192.672 29.4708 192.672 28.285C192.672 28.0305 192.672 27.7812 192.743 27.4911L194.295 19.6998H194.3Z" fill="white"/>
+        </svg>
+      </div>
+      <div className="px-4">
+        <p className="px-3 mb-2 font-mont font-semibold text-[11px] tracking-[0.12em] uppercase text-sb-sidelabel">Manage</p>
+        <nav className="flex flex-col gap-1">
+          {NAV.map(item => {
+            const isActive = active === item.id;
+            const count = counts[item.id];
+            return (
+              <button key={item.id} onClick={() => setActive(item.id)}
+                className={[
+                  "group flex items-center gap-3 px-3 py-2.5 rounded-lg font-mont font-semibold text-[14px] transition-colors w-full text-left",
+                  isActive ? "bg-white text-sb-sidebar" : "text-sb-sidetext hover:bg-white/5"
+                ].join(' ')}>
+                <Icon name={item.icon} className="w-[18px] h-[18px] shrink-0" />
+                <span className="flex-1 truncate">{item.label}</span>
+                {count != null && (
+                  <span className={[
+                    "text-[11px] px-1.5 py-0.5 rounded-md font-mont font-semibold",
+                    isActive ? "bg-sb-page text-sb-sidebar" : "bg-white/10 text-sb-sidetext"
+                  ].join(' ')}>{count.toLocaleString()}</span>
+                )}
+              </button>
+            );
+          })}
+        </nav>
+      </div>
+    </aside>
+  );
+}
+
+function Topbar({ onProfile, onLogout }) {
+  const { role, setRole } = useApp();
+  const [open, setOpen] = useState(false);
+  return (
+    <header className="bg-sb-card border-b border-sb-border h-[68px] flex items-center px-8 gap-6 sticky top-0 z-10">
+      <div className="relative flex-1 max-w-[460px]">
+        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9AA4B2]">
+          <Icon name="search" className="w-[18px] h-[18px]" />
+        </span>
+        <input
+          className="font-hanken w-full h-[40px] pl-10 pr-3 rounded-lg bg-sb-search border border-[#E5E7EB] text-[14px] text-sb-text outline-none focus:border-sb-primary/40 focus:bg-white"
+          placeholder="Search comedians, venues, fans…"
+        />
+      </div>
+      <div className="ml-auto flex items-center gap-5">
+
+        <div className="relative">
+          <button
+            onClick={() => setOpen(o => !o)}
+            onBlur={() => setTimeout(() => setOpen(false), 140)}
+            className="flex items-center gap-3 pl-5 border-l border-sb-border h-9 hover:opacity-90"
+          >
+            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-sb-primary to-[#1F4B8F] text-white flex items-center justify-center font-mont font-semibold text-[13px]">AM</div>
+            <div className="leading-tight text-left">
+              <div className="font-mont font-semibold text-[13px] text-sb-text">Asha Menon</div>
+              <div className="font-mont text-[11px] text-sb-muted">{role}</div>
+            </div>
+            <Icon name="chevron" className={["w-4 h-4 text-sb-muted transition-transform", open?"rotate-180":""].join(' ')} />
+          </button>
+          {open && (
+            <div className="absolute right-0 top-[52px] w-[240px] bg-white border border-sb-border rounded-xl shadow-modal z-30 p-1.5 sb-modal-in">
+              <div className="px-3 py-2.5">
+                <div className="font-mont font-semibold text-[13px] text-sb-text">Asha Menon</div>
+                <div className="font-hanken text-[12px] text-sb-muted">asha.menon@superbit.com</div>
+              </div>
+              <div className="h-px bg-sb-border mx-1 my-1" />
+              <button
+                onMouseDown={() => { setOpen(false); onProfile && onProfile(); }}
+                className="w-full text-left px-3 py-2 rounded-md font-mont text-[13px] text-sb-text hover:bg-sb-page flex items-center gap-2.5"
+              >
+                <Icon name="user" className="w-4 h-4 text-sb-muted" />
+                Profile
+              </button>
+              <div className="h-px bg-sb-border mx-1 my-1" />
+              <button
+                onMouseDown={() => { setOpen(false); onLogout && onLogout(); }}
+                className="w-full text-left px-3 py-2 rounded-md font-mont font-semibold text-[13px] text-[#D32F2F] hover:bg-[#FDECEC] flex items-center gap-2.5"
+              >
+                <Icon name="logout" className="w-4 h-4" />
+                Log out
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </header>
+  );
+}
+
+/* ============================================================
+   PAGE HEADER
+   ============================================================ */
+function PageHeader({ title, subtitle, counts }) {
+  return (
+    <div className="flex items-end justify-between mb-6">
+      <div>
+        <h1 className="font-mont font-semibold text-[24px] text-sb-text tracking-tight">{title}</h1>
+        {subtitle && <p className="font-mont text-[14px] text-sb-muted mt-1">{subtitle}</p>}
+        {counts && (
+          <div className="mt-2.5 flex items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white border border-sb-border font-mont text-[12px] text-sb-text">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#2E7D32]" />
+              <span className="font-semibold">{counts.active.toLocaleString()}</span>
+              <span className="text-sb-muted">Active</span>
+            </span>
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white border border-sb-border font-mont text-[12px] text-sb-text">
+              <span className="w-1.5 h-1.5 rounded-full bg-sb-error" />
+              <span className="font-semibold">{counts.inactive.toLocaleString()}</span>
+              <span className="text-sb-muted">Suspended</span>
+            </span>
+            {counts.pending != null && counts.pending > 0 && (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white border border-sb-border font-mont text-[12px] text-sb-text">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#D58A1E]" />
+                <span className="font-semibold">{counts.pending.toLocaleString()}</span>
+                <span className="text-sb-muted">Pending</span>
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+const buildCounts = (rows) => ({
+  active:   rows.filter(r => r.status === 'Active').length,
+  inactive: rows.filter(r => r.status === 'Suspended').length,
+  pending:  rows.filter(r => r.status === 'Pending').length,
+});
+
+/* ============================================================
+   DASHBOARD
+   ============================================================ */
+function StatCard({ label, value, delta, trend }) {
+  const up = trend === 'up';
+  return (
+    <div className="bg-sb-card border border-sb-border rounded-2xl p-5 shadow-card">
+      <div className="flex items-start justify-between">
+        <div className="font-mont font-semibold text-[12px] tracking-wide uppercase text-sb-muted">{label}</div>
+      </div>
+      <div className="mt-3 flex items-baseline gap-2">
+        <div className="font-mont font-semibold text-[30px] text-sb-text leading-none tracking-tight">{value.toLocaleString()}</div>
+      </div>
+      <div className="mt-3 flex items-center gap-1.5 text-[12px] font-mont">
+        <span className={[
+          "inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md font-semibold",
+          up ? "bg-[#E6F4EA] text-[#2E7D32]" : "bg-[#FDECEC] text-[#D32F2F]"
+        ].join(' ')}>
+          <Icon name={up ? 'arrowUp' : 'arrowDown'} className="w-3 h-3" />
+          {delta}
+        </span>
+        <span className="text-sb-muted">vs last 30 days</span>
+      </div>
+    </div>
+  );
+}
+
+function DashboardPage({ data, openSuspend, openActivate, onRowClick, onResendInvite }) {
+  const { role } = useApp();
+  const stats = [
+    { label:'Total Comedians',    value: data.comedians.length, delta:'+8.2%', trend:'up' },
+    { label:'Total Venues',       value: data.venues.length,    delta:'+3.4%', trend:'up' },
+    { label:'Total Fans',         value: data.fans.length,      delta:'+12.1%',trend:'up' },
+  ];
+
+  const recent = useMemo(() => {
+    const merged = [
+      ...data.comedians.slice(0,3).map(r => ({...r, type:'Comedian'})),
+      ...data.venues.slice(0,2).map(r => ({...r, type:'Venue'})),
+      ...data.fans.slice(0,2).map(r => ({...r, type:'Fan'})),
+    ];
+    return merged.slice(0, 5);
+  }, [data]);
+
+  const cols = [
+    { key:'name',  label:'Name',     render: r => <NameCell name={r.name} sub={r.email} /> },
+    { key:'type',  label:'User Type',render: r => <TypeBadge type={r.type} /> },
+    { key:'joined',label:'Joined',   render: r => <span className="text-sb-muted">{r.joined}</span> },
+    { key:'status',label:'Status',   render: r => <StatusBadge status={r.status} /> },
+  ];
+
+  const dashboardExportRows = useMemo(() => ([
+    ...data.comedians.map(r => ({...r, type:'Comedian'})),
+    ...data.venues.map(r => ({...r, type:'Venue'})),
+    ...data.fans.map(r => ({...r, type:'Fan'})),
+  ]), [data]);
+
+  return (
+    <div className="px-8 py-7" data-screen-label="01 Dashboard">
+      <div className="mb-6">
+        <h1 className="font-mont font-semibold text-[24px] text-sb-text tracking-tight">Welcome back, Asha</h1>
+      </div>
+      <div className="grid grid-cols-3 gap-5 mb-6">
+        {stats.map(s => <StatCard key={s.label} {...s} />)}
+      </div>
+
+      <h2 className="mb-3 font-mont font-semibold text-[18px] text-sb-text tracking-tight">Recent Signups</h2>
+      <div className="flex justify-end mb-3">
+        <ExportCSVButton rows={dashboardExportRows} columns={cols} filename="superbit-export.csv" disabled={role !== 'Admin'} />
+      </div>
+      <DataTable
+        rows={recent}
+        columns={cols}
+        pageSize={5}
+        onRowClick={onRowClick}
+        hideToolbar
+      />
+      <p className="mt-4 font-mont text-[11px] text-sb-muted">
+        {role === 'Admin'
+          ? 'You have full access. Suspend, reactivate, and export are enabled.'
+          : 'You are viewing as Employee. Action buttons are hidden; you can search, sort, and view only.'}
+      </p>
+    </div>
+  );
+}
+
+/* ============================================================
+   COMEDIANS PAGE
+   ============================================================ */
+function ComediansPage({ rows, openSuspend, openActivate, onRowClick, onAdd, onResendInvite }) {
+  const dash = <span className="text-sb-muted">--</span>;
+  const cols = [
+    { key:'name', label:'Name', render: r => <NameCell name={r.name} sub={r.email} />, search: r => r.name+' '+r.email+' '+r.stageName },
+    { key:'stageName', label:'Stage Name', render: r => r.status==='Pending' ? dash : r.stageName, search: r => r.stageName },
+    { key:'videos', label:'Videos Uploaded', align:'right', render: r => r.status==='Pending' ? dash : r.videos },
+    { key:'venuesPerformed', label:'Venues Performed', align:'right', render: r => r.status==='Pending' ? dash : r.venuesPerformed },
+    { key:'followers', label:'Followers', align:'right', render: r => r.status==='Pending' ? dash : r.followers.toLocaleString() },
+    { key:'joined', label:'Joined Date', render: r => r.status==='Pending' ? dash : <span className="text-sb-muted">{r.joined}</span> },
+    { key:'status', label:'Status', render: r => <StatusBadge status={r.status} /> },
+    { key:'actions', label:'Actions', sortable:false, align:'right',
+      render: r => <ActionsCell row={r} onSuspend={openSuspend} onActivate={openActivate} onResendInvite={onResendInvite} /> },
+  ];
+  const followersBuckets = (r, v) => {
+    const f = r.followers;
+    if (v === '< 1k') return f < 1000;
+    if (v === '1k–10k') return f >= 1000 && f < 10000;
+    if (v === '10k+') return f >= 10000;
+    return true;
+  };
+  return (
+    <div className="px-8 py-7" data-screen-label="02 Comedians">
+      <PageHeader title="Comedians" counts={buildCounts(rows)} />
+      <DataTable
+        rows={rows}
+        columns={cols}
+        pageSize={8}
+        onRowClick={onRowClick}
+        addLabel="Invite Comedian"
+        onAdd={onAdd}
+        searchPlaceholder="Search by name or stage name"
+        filters={[
+          { key:'status', label:'Status', options:['All','Active','Suspended','Pending'] },
+          { key:'followers', label:'Followers', options:['All','< 1k','1k–10k','10k+'], match: followersBuckets },
+        ]}
+      />
+    </div>
+  );
+}
+
+/* ============================================================
+   VENUES PAGE
+   ============================================================ */
+function VenuesPage({ rows, openSuspend, openActivate, onRowClick, onAdd, onResendInvite }) {
+  const dash = <span className="text-sb-muted">--</span>;
+  const cols = [
+    { key:'name', label:'Venue Name', render: r => <NameCell name={r.name} sub={r.email} />, search: r => r.name+' '+r.email+' '+r.location+' '+r.address },
+    { key:'location', label:'Location', render: r => r.status==='Pending' ? dash : r.location },
+    { key:'address', label:'Address', render: r => r.status==='Pending' ? dash : r.address },
+    { key:'upcoming', label:'Upcoming Shows', align:'right', render: r => r.status==='Pending' ? dash : r.upcoming },
+    { key:'joined', label:'Joined Date', render: r => r.status==='Pending' ? dash : <span className="text-sb-muted">{r.joined}</span> },
+    { key:'status', label:'Status', render: r => <StatusBadge status={r.status} /> },
+    { key:'actions', label:'Actions', sortable:false, align:'right',
+      render: r => <ActionsCell row={r} onSuspend={openSuspend} onActivate={openActivate} onResendInvite={onResendInvite} /> },
+  ];
+  const locationOptions = ['All', ...Array.from(new Set(rows.map(r => r.location))).sort()];
+  return (
+    <div className="px-8 py-7" data-screen-label="03 Venues">
+      <PageHeader title="Venues" counts={buildCounts(rows)} />
+      <DataTable
+        rows={rows}
+        columns={cols}
+        pageSize={8}
+        onRowClick={onRowClick}
+        addLabel="Invite Venue"
+        onAdd={onAdd}
+        searchPlaceholder="Search by venue, location or address"
+        filters={[
+          { key:'status', label:'Status', options:['All','Active','Suspended','Pending'] },
+          { key:'location', label:'Location', options: locationOptions },
+          { key:'upcoming', label:'Upcoming Shows', options:['All','None','1–5','6+'],
+            match: (r,v) => v==='None' ? r.upcoming===0 : v==='1–5' ? r.upcoming>=1 && r.upcoming<=5 : v==='6+' ? r.upcoming>=6 : true },
+        ]}
+      />
+    </div>
+  );
+}
+
+/* ============================================================
+   FANS PAGE
+   ============================================================ */
+function FansPage({ rows, openSuspend, openActivate, onRowClick, onAdd, onResendInvite }) {
+  const dash = <span className="text-sb-muted">--</span>;
+  const cols = [
+    { key:'name', label:'Name', render: r => <NameCell name={r.name} sub={r.email} />, search: r => r.name+' '+r.email+' '+r.location },
+    { key:'location', label:'Location', render: r => r.status==='Pending' ? dash : r.location },
+    { key:'joined', label:'Joined Date', render: r => r.status==='Pending' ? dash : <span className="text-sb-muted">{r.joined}</span> },
+    { key:'following', label:'Following', align:'right', render: r => r.status==='Pending' ? dash : r.following },
+    { key:'favorites', label:'Favorite Comedians', align:'right', render: r => r.status==='Pending' ? dash : r.favorites },
+    { key:'lastActive', label:'Last Active', render: r => r.status==='Pending' ? dash : <span className="text-sb-muted">{r.lastActive}</span>, search: r => r.lastActive },
+    { key:'status', label:'Status', render: r => <StatusBadge status={r.status} /> },
+    { key:'actions', label:'Actions', sortable:false, align:'right',
+      render: r => <ActionsCell row={r} onSuspend={openSuspend} onActivate={openActivate} onResendInvite={onResendInvite} /> },
+  ];
+  const locationOptions = ['All', ...Array.from(new Set(rows.map(r => r.location))).sort()];
+  return (
+    <div className="px-8 py-7" data-screen-label="04 Fans">
+      <PageHeader title="Fans" counts={buildCounts(rows)} />
+      <DataTable
+        rows={rows}
+        columns={cols}
+        pageSize={8}
+        onRowClick={onRowClick}
+        addLabel="Invite Fan"
+        onAdd={onAdd}
+        searchPlaceholder="Search by name or location"
+        filters={[
+          { key:'status', label:'Status', options:['All','Active','Suspended','Pending'] },
+          { key:'location', label:'Location', options: locationOptions },
+        ]}
+      />
+    </div>
+  );
+}
+
+/* ============================================================
+   INVITE MEMBER MODAL (Internal Users)
+   ============================================================ */
+function InviteMemberModal({ open, onClose, onInvite }) {
+  const [email, setEmail] = useState('');
+  const [role, setRole]   = useState('Collaborator');
+  const [err, setErr]     = useState({});
+  useEffect(() => { if (open) { setEmail(''); setRole('Collaborator'); setErr({}); } }, [open]);
+  if (!open) return null;
+
+  const submit = () => {
+    const e = {};
+    if (!email.trim()) e.email = 'Email is required';
+    else if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) e.email = 'Enter a valid email';
+    setErr(e);
+    if (Object.keys(e).length) return;
+    onInvite({ email, role });
+  };
+
+  return (
+    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40" onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} className="sb-modal-in bg-white border border-sb-border rounded-2xl shadow-modal w-[480px] max-w-[92vw] overflow-hidden">
+        <div className="px-6 py-4 border-b border-sb-border flex items-center">
+          <h3 className="font-mont font-semibold text-[16px] text-sb-text">Invite</h3>
+          <button onClick={onClose} className="ml-auto text-sb-muted hover:text-sb-text">
+            <Icon name="close" className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="px-6 py-5 flex flex-col gap-5">
+          <label className="block">
+            <div className="font-mont font-semibold text-[11px] tracking-[0.08em] uppercase text-sb-muted">Email Address</div>
+            <div className="relative mt-1.5">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9AA4B2]">
+                <Icon name="mail" className="w-[16px] h-[16px]" />
+              </span>
+              <input
+                type="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                placeholder="you@gmail.com"
+                onFocus={e => e.target.placeholder = 'you@gmail.com'}
+                onBlur={e => e.target.placeholder = ''}
+                className={[
+                  "font-hanken w-full h-[42px] pl-10 pr-3 rounded-lg bg-white border text-[14px] text-sb-text outline-none focus:border-sb-primary/50",
+                  err.email ? "border-sb-error" : "border-sb-border"
+                ].join(' ')}
+              />
+            </div>
+            {err.email && <div className="mt-1 font-mont text-[11px] text-sb-error">{err.email}</div>}
+          </label>
+
+          <div>
+            <div className="font-mont font-semibold text-[11px] tracking-[0.08em] uppercase text-sb-muted">Role</div>
+            <div className="mt-2 grid grid-cols-3 gap-2">
+              {INTERNAL_ROLES.map(r => {
+                const sel = role === r;
+                const desc = r === 'Administrator' ? 'Full access'
+                          : r === 'Collaborator'   ? 'Manage users'
+                          :                          'Plans & invoices';
+                return (
+                  <button
+                    key={r}
+                    type="button"
+                    onClick={() => setRole(r)}
+                    className={[
+                      "text-center rounded-lg border px-3 py-3 transition-colors flex items-center justify-center gap-2",
+                      sel ? "border-sb-primary bg-[#EEF3FB] ring-1 ring-sb-primary/30"
+                          : "border-sb-border bg-white hover:bg-sb-page"
+                    ].join(' ')}
+                  >
+                    <span className={[
+                      "w-3.5 h-3.5 rounded-full border flex items-center justify-center shrink-0",
+                      sel ? "border-sb-primary" : "border-sb-divider"
+                    ].join(' ')}>
+                      {sel && <span className="w-1.5 h-1.5 rounded-full bg-sb-primary" />}
+                    </span>
+                    <span className="font-mont font-semibold text-[13px] text-sb-text">{r}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        <div className="px-6 py-4 border-t border-sb-border bg-sb-page flex items-center justify-end gap-2">
+          <button onClick={onClose} className="h-10 px-4 rounded-md border border-sb-border bg-white text-sb-text font-mont font-semibold text-[13px] hover:bg-white/70">
+            Cancel
+          </button>
+          <button onClick={submit} className="h-10 px-4 rounded-md bg-sb-primary text-white font-mont font-semibold text-[13px] inline-flex items-center gap-2 hover:brightness-110">
+            <Icon name="mail" className="w-4 h-4" />
+            Invite
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   INTERNAL USERS PAGE
+   ============================================================ */
+function InternalUsersPage({ rows, openSuspend, openActivate, onRowClick, onAdd, onResendInvite }) {
+  const cols = [
+    { key:'name',   label:'Name',   render: r => <NameCell name={r.name} sub={r.email} />, search: r => r.name+' '+r.email },
+    { key:'joined', label:'Joined Date', render: r => <span className="text-sb-muted">{r.status==='Pending' ? '--' : r.joined}</span> },
+    { key:'status', label:'Status', render: r => <StatusBadge status={r.status} /> },
+    { key:'role',   label:'Role',   render: r => <RoleBadge role={r.role} /> },
+    { key:'actions', label:'Actions', sortable:false, align:'right',
+      render: r => <ActionsCell row={r} onSuspend={openSuspend} onActivate={openActivate} onResendInvite={onResendInvite} /> },
+  ];
+  return (
+    <div className="px-8 py-7" data-screen-label="06 Internal Users">
+      <PageHeader title="Internal Users" counts={buildCounts(rows)} />
+      <DataTable
+        rows={rows}
+        columns={cols}
+        pageSize={8}
+        onRowClick={onRowClick}
+        addLabel="Add"
+        onAdd={onAdd}
+        searchPlaceholder="Search by name or email"
+        filters={[
+          { key:'status', label:'Status', options:['All','Active','Suspended','Pending'] },
+          { key:'role',   label:'Role',   options:['All','Administrator','Collaborator','Billing'] },
+        ]}
+      />
+    </div>
+  );
+}
+
+/* ============================================================
+   SUSPENDED ACCOUNTS PAGE
+   ============================================================ */
+function SuspendedPage({ data, openActivate, onRowClick }) {
+  const rows = useMemo(() => {
+    const c = data.comedians.filter(r => r.status==='Suspended').map(r => ({ ...r, type:'Comedian', suspendedDate: r.joined }));
+    const v = data.venues   .filter(r => r.status==='Suspended').map(r => ({ ...r, type:'Venue',    suspendedDate: r.joined }));
+    const f = data.fans     .filter(r => r.status==='Suspended').map(r => ({ ...r, type:'Fan',      suspendedDate: r.joined }));
+    return [...c, ...v, ...f];
+  }, [data]);
+
+  const cols = [
+    { key:'name', label:'Name', render: r => <NameCell name={r.name} sub={r.email} />, search: r => r.name+' '+r.email },
+    { key:'type', label:'Type of Account', render: r => <TypeBadge type={r.type} /> },
+    { key:'suspendedDate', label:'Suspended Date', render: r => <span className="text-sb-muted">{r.suspendedDate}</span> },
+    { key:'status', label:'Status', render: () => <StatusBadge status="Suspended" /> },
+    { key:'actions', label:'Actions', sortable:false, align:'right',
+      render: r => <ActivateButton onClick={() => openActivate(r)} /> },
+  ];
+
+  return (
+    <div className="px-8 py-7" data-screen-label="05 Suspended Accounts">
+      <PageHeader title="Suspended Accounts" subtitle={`${rows.length} accounts suspended.`} />
+      <DataTable
+        rows={rows}
+        columns={cols}
+        pageSize={8}
+        emptyText="No suspended accounts."
+        onRowClick={onRowClick}
+        searchPlaceholder="Search by name or email"
+        filters={[
+          { key:'type', label:'Type of Account', options:['All','Comedian','Venue','Fan'] },
+        ]}
+      />
+    </div>
+  );
+}
+
+/* ============================================================
+   PROFILE PAGE
+   ============================================================ */
+function ProfilePage({ role }) {
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+
+  const profile = {
+    name: 'Asha Menon',
+    email: 'asha.menon@superbit.com',
+    role: role === 'Admin' ? 'Administrator' : 'Collaborator',
+    phone: '+91 98765 43210',
+  };
+
+  const handlePasswordUpdate = (e) => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      setError('Please fill all password fields.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setError('New password and confirm password must match.');
+      return;
+    }
+
+    setSuccess('Password updated successfully (prototype).');
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmPassword('');
+  };
+
+  return (
+    <div className="px-8 py-7" data-screen-label="07 Profile">
+      <PageHeader title="Profile" subtitle="Manage your account details and password." />
+
+      <section className="bg-sb-card border border-sb-border rounded-2xl shadow-card overflow-hidden">
+        <div className="px-6 py-5 border-b border-sb-border bg-sb-page flex items-center gap-4">
+          <div className="w-14 h-14 rounded-full bg-gradient-to-br from-sb-primary to-[#1F4B8F] text-white flex items-center justify-center font-mont font-semibold text-[18px] shrink-0">
+            AM
+          </div>
+          <div>
+            <h2 className="font-mont font-semibold text-[20px] text-sb-text">Asha Menon</h2>
+            <p className="font-mont text-[13px] text-sb-muted">Superbit Admin Account</p>
+          </div>
+        </div>
+
+        <div className="px-6 py-6 grid grid-cols-2 gap-x-8 gap-y-5">
+          <div>
+            <div className="font-mont font-semibold text-[11px] tracking-[0.08em] uppercase text-sb-muted">Full Name</div>
+            <div className="mt-1 font-mont text-[14px] text-sb-text">{profile.name}</div>
+          </div>
+          <div>
+            <div className="font-mont font-semibold text-[11px] tracking-[0.08em] uppercase text-sb-muted">Email</div>
+            <div className="mt-1 font-hanken text-[14px] text-sb-text">{profile.email}</div>
+          </div>
+          <div>
+            <div className="font-mont font-semibold text-[11px] tracking-[0.08em] uppercase text-sb-muted">Role</div>
+            <div className="mt-1"><RoleBadge role={profile.role} /></div>
+          </div>
+          <div>
+            <div className="font-mont font-semibold text-[11px] tracking-[0.08em] uppercase text-sb-muted">Phone</div>
+            <div className="mt-1 font-mont text-[14px] text-sb-text">{profile.phone}</div>
+          </div>
+        </div>
+
+        <div className="px-6 py-5 border-t border-sb-border bg-white">
+          <h3 className="font-mont font-semibold text-[16px] text-sb-text mb-4">Update Password</h3>
+
+          <form onSubmit={handlePasswordUpdate} className="flex flex-col gap-3 max-w-[520px]">
+            <input
+              type="password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              placeholder="Current Password"
+              className="font-hanken h-[42px] px-3 rounded-lg border border-sb-border bg-white text-[14px] text-sb-text outline-none focus:border-sb-primary/50"
+            />
+            <input
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="New Password"
+              className="font-hanken h-[42px] px-3 rounded-lg border border-sb-border bg-white text-[14px] text-sb-text outline-none focus:border-sb-primary/50"
+            />
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="Confirm New Password"
+              className="font-hanken h-[42px] px-3 rounded-lg border border-sb-border bg-white text-[14px] text-sb-text outline-none focus:border-sb-primary/50"
+            />
+
+            <div className="flex items-center justify-between gap-3 mt-1">
+              <div className="font-mont text-[12px]">
+                {error && <span className="text-sb-error">{error}</span>}
+                {!error && success && <span className="text-[#2E7D32]">{success}</span>}
+              </div>
+              <button
+                type="submit"
+                className="h-10 px-4 rounded-md bg-sb-primary text-white font-mont font-semibold text-[13px] inline-flex items-center gap-2 hover:brightness-110"
+              >
+                Update Password
+              </button>
+            </div>
+          </form>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+/* ============================================================
+   APP
+   ============================================================ */
+function App() {
+  const [active, setActive] = useState('dashboard');
+  const [role, setRole]     = useState('Admin');
+
+  const [comedians, setComedians] = useState(COMEDIANS);
+  const [venues, setVenues]       = useState(VENUES);
+  const [fans, setFans]           = useState(FANS);
+  const [internal, setInternal]   = useState(INTERNAL_USERS);
+
+  const [confirm, setConfirm] = useState({ open:false, kind:null, row:null });
+  const [detail, setDetail]   = useState({ open:false, row:null });
+  const [addModal, setAddModal] = useState({ open:false, kind:null });
+  const [toasts, setToasts]   = useState([]);
+  const [inviteOpen, setInviteOpen] = useState(false);
+
+  const dismiss = useCallback((id) => setToasts(t => t.filter(x => x.id !== id)), []);
+  const pushToast = useCallback((t) => {
+    const id = Math.random().toString(36).slice(2);
+    setToasts(ts => [...ts, { id, ...t }]);
+    setTimeout(() => dismiss(id), 3500);
+  }, [dismiss]);
+
+  const updateStatus = (row, status) => {
+    if (comedians.some(c => c.id === row.id)) setComedians(rs => rs.map(r => r.id===row.id ? {...r, status} : r));
+    else if (venues.some(c => c.id === row.id)) setVenues(rs => rs.map(r => r.id===row.id ? {...r, status} : r));
+    else if (fans.some(c => c.id === row.id)) setFans(rs => rs.map(r => r.id===row.id ? {...r, status} : r));
+    else setInternal(rs => rs.map(r => r.id===row.id ? {...r, status} : r));
+  };
+
+  const openSuspend  = (row) => setConfirm({ open:true, kind:'suspend',  row });
+  const openActivate = (row) => setConfirm({ open:true, kind:'activate', row });
+  const closeConfirm = () => setConfirm({ open:false, kind:null, row:null });
+
+  const openDetail  = (row) => setDetail({ open:true, row });
+  const closeDetail = () => setDetail({ open:false, row:null });
+
+  const openAdd  = (kind) => () => setAddModal({ open:true, kind });
+  const closeAdd = () => setAddModal({ open:false, kind:null });
+
+  const today = new Date().toISOString().slice(0,10);
+  const handleAdd = (kind, form) => {
+    const email = form.email;
+    const namePart = email.split('@')[0].replace(/[^a-z]/gi,' ').trim();
+    const name = namePart.split(' ').filter(Boolean).map(s => s[0].toUpperCase()+s.slice(1)).join(' ') || email;
+    if (kind === 'Comedian') {
+      const row = { id:'c'+Date.now(), name, email, stageName:name, videos:0, venuesPerformed:0, followers:0, joined:today, status:'Pending' };
+      setComedians(rs => [row, ...rs]);
+    } else if (kind === 'Venue') {
+      const row = { id:'v'+Date.now(), name, email, location:'—', address:'—', upcoming:0, joined:today, status:'Pending' };
+      setVenues(rs => [row, ...rs]);
+    } else {
+      const row = { id:'f'+Date.now(), name, email, location:'—', joined:today, following:0, favorites:0, lastActive:today, status:'Pending' };
+      setFans(rs => [row, ...rs]);
+    }
+    closeAdd();
+    pushToast({ tone:'success', title:'Invite sent', body:`${email} · ${kind}` });
+  };
+
+  const handleInvite = ({ email, role: r }) => {
+    const namePart = email.split('@')[0].replace(/[^a-z]/gi,' ').trim();
+    const name = namePart.split(' ').filter(Boolean).map(s => s[0].toUpperCase()+s.slice(1)).join(' ') || email;
+    const row = { id:'iu'+Date.now(), name, email, role:r, joined:today, status:'Pending' };
+    setInternal(rs => [row, ...rs]);
+    setInviteOpen(false);
+    pushToast({ tone:'success', title:'Invite sent', body:`${email} · ${r}` });
+  };
+
+  const onLogout  = () => pushToast({ tone:'success', title:'Signed out (demo)', body:'Wire to your auth flow to redirect.' });
+  const onProfile = () => setActive('profile');
+
+  const updateRow = (row, patch) => {
+    if (comedians.some(c => c.id === row.id)) setComedians(rs => rs.map(r => r.id===row.id ? {...r, ...patch} : r));
+    else if (venues.some(c => c.id === row.id)) setVenues(rs => rs.map(r => r.id===row.id ? {...r, ...patch} : r));
+    else if (fans.some(c => c.id === row.id)) setFans(rs => rs.map(r => r.id===row.id ? {...r, ...patch} : r));
+    else setInternal(rs => rs.map(r => r.id===row.id ? {...r, ...patch} : r));
+  };
+
+  const onResendInvite = (row) => {
+    const newSent = today;
+    const newExpires = addDays(today, 7);
+    updateRow(row, { inviteSent: newSent, inviteExpires: newExpires, lastReminded: today });
+    pushToast({ tone:'success', title:'Invite resent', body:`${row.email} · expires ${newExpires}` });
+  };
+
+  const onCancelInvite = (row) => {
+    if (comedians.some(c => c.id === row.id)) setComedians(rs => rs.filter(r => r.id !== row.id));
+    else if (venues.some(c => c.id === row.id)) setVenues(rs => rs.filter(r => r.id !== row.id));
+    else if (fans.some(c => c.id === row.id)) setFans(rs => rs.filter(r => r.id !== row.id));
+    else setInternal(rs => rs.filter(r => r.id !== row.id));
+    pushToast({ tone:'danger', title:'Invite canceled', body: row.email });
+  };
+
+  const onConfirm = () => {
+    const { kind, row } = confirm;
+    if (kind === 'suspend')  { updateStatus(row, 'Suspended'); pushToast({ tone:'danger',  title:`${row.name} suspended`, body:'They can no longer post or perform.' }); }
+    if (kind === 'activate') { updateStatus(row, 'Active');    pushToast({ tone:'success', title:`${row.name} reactivated`, body:'Account access has been restored.' }); }
+    closeConfirm();
+  };
+
+  const suspendedCount =
+    comedians.filter(r => r.status==='Suspended').length +
+    venues.filter(r => r.status==='Suspended').length +
+    fans.filter(r => r.status==='Suspended').length;
+
+  const data = { comedians, venues, fans, suspendedCount };
+  const counts = {};
+
+  return (
+    <AppCtx.Provider value={{ role, setRole }}>
+      <div className="flex min-h-screen bg-sb-page">
+        <Sidebar active={active} setActive={setActive} counts={counts} />
+        <div className="flex-1 min-w-0 flex flex-col">
+          <Topbar onProfile={onProfile} onLogout={onLogout} />
+          {active === 'dashboard' && <DashboardPage data={data} openSuspend={openSuspend} openActivate={openActivate} onRowClick={openDetail} onResendInvite={onResendInvite} />}
+          {active === 'comedians' && <ComediansPage rows={comedians} openSuspend={openSuspend} openActivate={openActivate} onRowClick={openDetail} onAdd={openAdd('Comedian')} onResendInvite={onResendInvite} />}
+          {active === 'venues'    && <VenuesPage    rows={venues}    openSuspend={openSuspend} openActivate={openActivate} onRowClick={openDetail} onAdd={openAdd('Venue')} onResendInvite={onResendInvite} />}
+          {active === 'fans'      && <FansPage      rows={fans}      openSuspend={openSuspend} openActivate={openActivate} onRowClick={openDetail} onAdd={openAdd('Fan')} onResendInvite={onResendInvite} />}
+          {active === 'suspended' && <SuspendedPage data={data} openActivate={openActivate} onRowClick={openDetail} />}
+          {active === 'internal'  && <InternalUsersPage rows={internal} openSuspend={openSuspend} openActivate={openActivate} onRowClick={openDetail} onAdd={() => setInviteOpen(true)} onResendInvite={onResendInvite} />}
+          {active === 'profile'   && <ProfilePage role={role} />}
+        </div>
+
+        <ConfirmationModal open={confirm.open} kind={confirm.kind} name={confirm.row?.name} onCancel={closeConfirm} onConfirm={onConfirm} />
+        <UserDetailModal open={detail.open} row={detail.row} onClose={closeDetail} onSuspend={openSuspend} onActivate={openActivate} onResendInvite={onResendInvite} onCancelInvite={onCancelInvite} />
+        <AddMemberModal open={addModal.open} kind={addModal.kind} onClose={closeAdd} onAdd={handleAdd} />
+        <InviteMemberModal open={inviteOpen} onClose={() => setInviteOpen(false)} onInvite={handleInvite} />
+        <Toasts toasts={toasts} dismiss={dismiss} />
+      </div>
+    </AppCtx.Provider>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+
+// If Tailwind arrives late (CDN was slow in preview), force a reflow so utility classes apply
+window.__tw_retry_render = function(){
+  document.body.style.display = 'none';
+  // eslint-disable-next-line no-unused-expressions
+  document.body.offsetHeight;
+  document.body.style.display = '';
+};
+</script>
+
+</body>
+</html>
